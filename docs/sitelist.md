@@ -310,6 +310,7 @@ The above is a reference list. Please see [the manualsearch doc](./manualsearch.
   - SexBabesVR
   - SinsVR
   - StasyQVR
++ #### HotGuysFuck | Matching type: *[Exact](./manualsearch.md#exact-match)* - **DirectURL + Date**
 + #### Intersec Network | Matching type: *[Enhanced](./manualsearch.md#enhanced-search)* - **Actor only**
   - Hardtied
   - Infernal Restraints
