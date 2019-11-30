@@ -93,8 +93,9 @@ import networkIntersec
 import networkMileHighMedia
 import networkCherryPimps
 import siteWicked
+import site18OnlyGirls
 
-searchSites = [None] * 794
+searchSites = [None] * 795
 searchSites[0] = ["Blackedraw com","BlackedRaw","https://www.blackedraw.com","https://www.blackedraw.com/search?q="]
 searchSites[1] = ["Blacked com","Blacked","https://www.blacked.com","https://www.blacked.com/search?q="]
 searchSites[2] = ["Brazzers.com","Brazzers","http://www.brazzers.com","http://www.brazzers.com/search/all/?q="]
@@ -828,7 +829,7 @@ searchSites[729] = ["ArchAngel","ArchAngel","https://www.archangelvideo.com","ht
 searchSites[730] = ["We Are Hairy","We Are Hairy","https://www.wearehairy.com","https://www.wearehairy.com/search/?query="]
 searchSites[731] = ["Love Her Feet","Love Her Feet","https://www.loveherfeet.com","https://www.loveherfeet.com/tour/search.php?query="]
 searchSites[732] = ["MomPOV","MomPOV","http://www.mompov.com","http://www.mompov.com/tour/?s="]
-searchSites[733] = ["Property Sex","Property Sex","https://www.propertysex.com","https://www.propertysex.com/search?q="]
+searchSites[733] = ["Property Sex","Property Sex","https://www.propertysex.com","https://www.propertysex.com/scene/"]
 searchSites[734] = ["FuckedHard18","FuckedHard18","http://fuckedhard18.com","http://fuckedhard18.com/membersarea/search.php?query="]
 searchSites[735] = ["Fucked and Bound","Fucked and Bound","http://www.kink.com","http://www.kink.com/search?channelIds=fuckedandbound&q="]
 searchSites[736] = ["Captive Male","Captive Male","http://www.kink.com","http://www.kink.com/search?channelIds=captivemale&q="]
@@ -889,7 +890,7 @@ searchSites[790] = ["BCM","BCM.XXX","https://www.pimp.xxx","https://pimp.xxx/sea
 searchSites[791] = ["Petite","Petite.XXX","https://www.pimp.xxx","https://pimp.xxx/search.php?query="]
 searchSites[792] = ["Family","Family.XXX","https://www.pimp.xxx","https://pimp.xxx/search.php?query="]
 searchSites[793] = ["Wicked","Wicked Pictures","https://www.wicked.com","https://wicked.com/en/movie/"]
-
+searchSites[794] = ["18OnlyGirls","18 Only Girls","http://www.18onlygirls.tv","http://18onlygirls.tv/?s="]
 
 def getSearchBaseURL(siteID):
     return searchSites[siteID][2]
@@ -952,6 +953,7 @@ def getSearchSettings(mediaTitle):
     mediaTitle = re.sub('^bgonzo ', 'BangGonzo ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^brealteens ', 'BangRealTeens ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^bcb ', 'BigCockBully ', mediaTitle, flags=re.IGNORECASE)
+    mediaTitle = re.sub('^bch ', 'BigCockHero ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^bdpov ', 'BadDaddyPOV ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^bex ', 'BrazzersExxtra ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^bgb ', 'BabyGotBoobs ', mediaTitle, flags=re.IGNORECASE)
@@ -971,6 +973,7 @@ def getSearchSettings(mediaTitle):
     mediaTitle = re.sub('^cfnm ', 'ClothedFemaleNudeMale ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^clip ', 'LegalPorno ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^cps ', 'CherryPimps ', mediaTitle, flags=re.IGNORECASE)
+    mediaTitle = re.sub('^cuf ', 'CumFiesta ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^cws ', 'CzechWifeSwap ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^da ', 'DoctorAdventures ', mediaTitle, flags=re.IGNORECASE)
     mediaTitle = re.sub('^dbm ', 'DontBreakMe ', mediaTitle, flags=re.IGNORECASE)

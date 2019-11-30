@@ -6,6 +6,7 @@
 The above is a reference list. Please see [the manualsearch doc](./manualsearch.md) for how to use these further.
 # All supported networks and sites
 
++ #### 18OnlyGirls | Matching type: *[Limited](./manualsearch.md#limited-search)* - **Date Add**
 + #### 21Naturals | Matching type: *[Enhanced](./manualsearch.md#enhanced-search)*
   - 21Naturals
   - 21FootArt
@@ -611,7 +612,7 @@ The above is a reference list. Please see [the manualsearch doc](./manualsearch.
   - Russian Teen Ass
   - Sex on the beach
   - Tight and Teen
-+ #### PropertySex | Matching type: *[Enhanced](./manualsearch.md#enhanced-search)* / *[Exact](./manualsearch.md#excact-match)* - **SceneID**
++ #### PropertySex | Matching type: *[Exact](./manualsearch.md#exact-match)* - **SceneID**
 + #### PureTaboo | Matching type: *[Enhanced](./manualsearch.md#enhanced-search)*
 + #### Reality Kings Network | Matching type: *[Exact](./manualsearch.md#exact-match)* - **SceneID**
   - 40 Inch Plus
@@ -667,7 +668,7 @@ The above is a reference list. Please see [the manualsearch doc](./manualsearch.
   - Massage Rooms
   - MomXXX
 + #### Screwbox | Matching type: *[Limited](./manualsearch.md#limited-search)*
-+ #### SisLovesMe | Matching type: *[Exact](./manualsearch.md#exact-match)* - **SceneID**
++ #### SisLovesMe | Matching type: *[Exact](./manualsearch.md#exact-match)* - **SceneID, Date Add****
 + #### Spizoo | Matching type: *[Limited](./manualsearch.md#limited-search)*
   - FirstClassPOV
   - IntimateLesbians
