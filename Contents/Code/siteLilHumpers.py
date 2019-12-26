@@ -13,23 +13,23 @@ def search(results,encodedTitle,title,searchTitle,siteNum,lang,searchByDateActor
         sceneTitle = ''
     Log("Scene Title: " + sceneTitle)
     url = PAsearchSites.getSearchSearchURL(siteNum) + sceneID + "/1"
-    searchResults = HTML.ElementFromURL(url)
-    for searchResult in searchResults.xpath('//div[@class="wxt7nk-0 JqBNK"]//div[1]/h1'):
-        titleNoFormatting = searchResult.xpath('//div[1]/h1')[0].text_content().replace('Trailer','').strip()
-        curID = url.replace('/','_').replace('?','!')
-        subSite = searchResult.xpath('//div[@class="sc-11m21lp-2 bYxGJu"]')[0].text_content().strip()
-        if sceneTitle:
-            score = 100 - Util.LevenshteinDistance(sceneTitle.lower(), titleNoFormatting.lower())
-        else:
-            score = 90
-        results.Append(MetadataSearchResult(id = curID + "|" + str(siteNum), name = titleNoFormatting + " [Mofos/" + subSite + "] ", score = score, lang = lang))
+    searchResult = HTML.ElementFromURL(url)
+
+    titleNoFormatting = searchResult.xpath('//h1[@class="wxt7nk-4 fSsARZ"]')[0].text_content().strip()
+    curID = url.replace('/','_').replace('?','!')
+    releaseDate = parse(searchResult.xpath('//div[@class="tjb798-2 flgKJM"]/span[position()=last()]')[0].text_content().strip().replace('Release Date:', '')).strftime('%Y-%m-%d')
+    if sceneTitle:
+        score = 100 - Util.LevenshteinDistance(sceneTitle.lower(), titleNoFormatting.lower())
+    else:
+        score = 90
+    results.Append(MetadataSearchResult(id = curID + "|" + str(siteNum) + "|" + releaseDate, name = titleNoFormatting + " [Bellesa Films] " + releaseDate, score = score, lang = lang))
 
     return results
 
 def update(metadata,siteID,movieGenres,movieActors):
     Log('******UPDATE CALLED*******')
 
-    url = str(metadata.id).split("|")[0].replace('_','/').replace('?','!')
+    url = str(metadata.id).split("|")[0].replace('_','/').replace('!','?')
     detailsPageElements = HTML.ElementFromURL(url)
     art = []
     metadata.collections.clear()
@@ -37,19 +37,19 @@ def update(metadata,siteID,movieGenres,movieActors):
     movieActors.clearActors()
 
     # Studio
-    metadata.studio = 'Mofos'
+    metadata.studio = 'Lil Humpers'
 
     # Title
-    metadata.title = detailsPageElements.xpath('//h1[@class="wxt7nk-4 fSsARZ"]')[0].text_content().replace('Trailer','').strip()
+    metadata.title = detailsPageElements.xpath('//h1[@class="wxt7nk-4 fSsARZ"]')[0].text_content().strip()
 
     # Summary
     try:
-        metadata.summary = detailsPageElements.xpath('//div[@class="tjb798-2 flgKJM"]/span[2]/div[2]')[0].text_content().strip()
+        metadata.summary = detailsPageElements.xpath('//div[@class="tjb798-2 flgKJM"]/span[position()=last()-1]/div[2]')[0].text_content().strip()
     except:
         pass
 
-    #Tagline and Collection(s)
-    tagline = detailsPageElements.xpath('//div[@class="sc-11m21lp-2 bYxGJu"]')[0].text_content().strip()
+    # Tagline and Collection(s)
+    tagline = PAsearchSites.getSearchSiteName(siteID).strip()
     metadata.tagline = tagline
     metadata.collections.add(tagline)
 
@@ -63,39 +63,37 @@ def update(metadata,siteID,movieGenres,movieActors):
     # Release Date
     date = detailsPageElements.xpath('//div[@class="tjb798-2 flgKJM"]/span[last()]')
     if len(date) > 0:
-        date = date[0].text_content().strip().replace('Release Date:','')
+        date = date[0].text_content().strip().replace('Release Date:', '')
         date_object = datetime.strptime(date, '%B %d, %Y')
         metadata.originally_available_at = date_object
         metadata.year = metadata.originally_available_at.year
 
     # Actors
-    try:
-        actors = detailsPageElements.xpath('//a[@class="wxt7nk-6 czvZQW"]')
-        if len(actors) > 0:
-            if len(actors) == 3:
-                movieGenres.addGenre("Threesome")
-            if len(actors) == 4:
-                movieGenres.addGenre("Foursome")
-            if len(actors) > 4:
-                movieGenres.addGenre("Orgy")
-            for actorLink in actors:
-                actorName = str(actorLink.text_content().strip())
+    actors = detailsPageElements.xpath('//a[@class="wxt7nk-6 czvZQW"]')
+    if len(actors) > 0:
+        if len(actors) == 3:
+            movieGenres.addGenre("Threesome")
+        if len(actors) == 4:
+            movieGenres.addGenre("Foursome")
+        if len(actors) > 4:
+            movieGenres.addGenre("Orgy")
+        for actorLink in actors:
+            actorName = str(actorLink.text_content().strip())
+            try:
                 actorPageURL = PAsearchSites.getSearchBaseURL(siteID) + actorLink.get("href")
-                Log("actorPageURL: " + actorPageURL)
                 actorPage = HTML.ElementFromURL(actorPageURL)
-                try:
-                    actorPhotoURL = actorPage.xpath('//div[@class="sc-1p8qg4p-0 kYYnJ"]/div/img')[0].get("src")
-                except:
-                    actorPhotoURL = ''
-                movieActors.addActor(actorName, actorPhotoURL)
-    except:
-        pass
+                actorPhotoURL = actorPage.xpath('//div[@class="sc-1p8qg4p-0 kYYnJ"]/div/img')[0].get("src")
+                if 'http' not in actorPhotoURL:
+                    actorPhotoURL = PAsearchSites.getSearchBaseURL(siteID) + actorPhotoURL
+            except:
+                actorPhotoURL = ""
+            movieActors.addActor(actorName, actorPhotoURL)
 
     ### Posters and artwork ###
 
     # Video trailer background image
     try:
-        twitterBG = detailsPageElements.xpath('//div[@class="tg5e7m-2 evtSOm"]/img')[0].get('src')
+        twitterBG = detailsPageElements.xpath('//img[@class="tg5e7m-1 cLRjtP"]')[0].get('src')
         art.append(twitterBG)
     except:
         pass
@@ -103,7 +101,7 @@ def update(metadata,siteID,movieGenres,movieActors):
     j = 1
     Log("Artwork found: " + str(len(art)))
     for posterUrl in art:
-        if not PAsearchSites.posterAlreadyExists(posterUrl,metadata):
+        if not PAsearchSites.posterAlreadyExists(posterUrl,metadata):            
             #Download image file for analysis
             try:
                 img_file = urllib.urlopen(posterUrl)
