@@ -1,38 +1,41 @@
 import PAsearchSites
 import PAgenres
 import PAactors
+import json
 
 def search(results,encodedTitle,title,searchTitle,siteNum,lang,searchByDateActor,searchDate,searchSiteID):
     if searchSiteID != 9999:
         siteNum = searchSiteID
-    sceneID = encodedTitle.split('%20', 1)[0]
-    Log("SceneID: " + sceneID)
-    try:
-        sceneTitle = encodedTitle.split('%20', 1)[1].replace('%20',' ')
-    except:
-        sceneTitle = ''
-    Log("Scene Title: " + sceneTitle)
-    url = PAsearchSites.getSearchSearchURL(siteNum) + sceneID + "/1"
-    searchResult = HTML.ElementFromURL(url)
 
-    titleNoFormatting = searchResult.xpath('//h1[@class="wxt7nk-4 fSsARZ"]')[0].text_content().strip()
-    curID = url.replace('/','_').replace('?','!')
-    if searchDate:
-        releaseDate = parse(searchDate).strftime('%Y-%m-%d')
-    else:
-        releaseDate = ''
-    if sceneTitle:
-        score = 100 - Util.LevenshteinDistance(sceneTitle.lower(), titleNoFormatting.lower())
-    else:
-        score = 90
-    results.Append(MetadataSearchResult(id = curID + "|" + str(siteNum) + "|" + releaseDate, name = titleNoFormatting + " [Bellesa Films] " + releaseDate, score = score, lang = lang))
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:72.0) Gecko/20100101 Firefox/72.0'
+    }
+    for sceneType in ['videos', 'dvds']:
+        url = PAsearchSites.getSearchSearchURL(siteNum) + sceneType + '/api/?flagType=video&search=' + encodedTitle
+        req = urllib.Request(url, headers=headers)
+        data = urllib.urlopen(req).read()
+        searchResults = json.loads(data)
+        for searchResult in searchResults['responseData']:
+            titleNoFormatting = searchResult['name']
+            curID = searchResult['url'].replace('/','_').replace('?','!')
+            if 'site' in searchResult:
+                subSite = searchResult['site']['name']
+            else:
+                subSite = 'DVD'
+            releaseDate = parse(searchResult['release_date']).strftime('%Y-%m-%d')
+            videoBG = searchResult['placard_800'].replace('/','_').replace('?','!')
+            if searchDate:
+                score = 100 - Util.LevenshteinDistance(searchDate, releaseDate)
+            else:
+                score = 100 - Util.LevenshteinDistance(searchTitle.lower(), titleNoFormatting.lower())
+            results.Append(MetadataSearchResult(id='%s|%d|%s|%s' % (curID, siteNum, subSite, videoBG), name='%s [Vivid/%s] %s' % (titleNoFormatting, subSite, releaseDate), score=score, lang=lang))
 
     return results
 
 def update(metadata,siteID,movieGenres,movieActors):
     Log('******UPDATE CALLED*******')
 
-    url = str(metadata.id).split("|")[0].replace('_','/').replace('!','?')
+    url = PAsearchSites.getSearchBaseURL(siteID) + str(metadata.id).split("|")[0].replace('_','/').replace('!','?')
     detailsPageElements = HTML.ElementFromURL(url)
     art = []
     metadata.collections.clear()
@@ -40,54 +43,47 @@ def update(metadata,siteID,movieGenres,movieActors):
     movieActors.clearActors()
 
     # Studio
-    metadata.studio = 'Mile High Media'
+    metadata.studio = 'Vivid Entertainment'
 
     # Title
-    metadata.title = detailsPageElements.xpath('//h1[@class="wxt7nk-4 fSsARZ"]')[0].text_content().strip()
+    metadata.title = detailsPageElements.xpath('//h2[@class="scene-h2-heading"]')[0].text_content().strip()
 
     # Summary
-    metadata.summary = detailsPageElements.xpath('//div[@class="tjb798-2 flgKJM"]/span[2]/div[2]')[0].text_content().strip()
+    metadata.summary = detailsPageElements.xpath('//p[@class="indie-model-p"]')[0].text_content().strip()
 
     # Tagline and Collection(s)
-    tagline = PAsearchSites.getSearchSiteName(siteID).strip()
+    tagline = str(metadata.id).split("|")[2]
     metadata.tagline = tagline
     metadata.collections.add(tagline)
 
     # Genres
-    genres = detailsPageElements.xpath('//div[@class="tjb798-2 flgKJM"]/span[1]/a')
+    genres = detailsPageElements.xpath('//h5[contains(text(),"Categories:")]/a')
     if len(genres) > 0:
         for genreLink in genres:
             genreName = genreLink.text_content().strip().lower()
             movieGenres.addGenre(genreName)
 
     # Release Date
-    date = str(metadata.id).split("|")[2]
+    date = detailsPageElements.xpath('//h5[contains(text(),"Released:")]')[0].text_content().replace("Released:","").strip()
     if len(date) > 0:
-        date_object = parse(date)
+        date_object = datetime.strptime(date, '%b %d, %Y')
         metadata.originally_available_at = date_object
         metadata.year = metadata.originally_available_at.year
-        Log("Date from file")
 
     # Actors
-    actors = detailsPageElements.xpath('//div[@class="wxt7nk-5 cWGMuL"]/span/a')
+    actors = detailsPageElements.xpath('//h4[contains(text(),"Starring:")]/a')
     if len(actors) > 0:
         for actorLink in actors:
             actorName = str(actorLink.text_content().strip())
-            try:
-                actorPageURL = PAsearchSites.getSearchBaseURL(siteID) + actorLink.get("href")
-                actorPage = HTML.ElementFromURL(actorPageURL)
-                actorPhotoURL = actorPage.xpath('//div[@class="sc-1p8qg4p-0 kYYnJ"]/div/img')[0].get("src")
-                if 'http' not in actorPhotoURL:
-                    actorPhotoURL = PAsearchSites.getSearchBaseURL(siteID) + actorPhotoURL
-            except:
-                actorPhotoURL = ""
+            actorPhotoURL = ""
             movieActors.addActor(actorName,actorPhotoURL)
 
     ### Posters and artwork ###
 
     # Video trailer background image
     try:
-        twitterBG = detailsPageElements.xpath('//div[@class="tg5e7m-2 evtSOm"]/img')[0].get("src")
+        twitterBG = str(metadata.id).split("|")[3]
+        twitterBG = twitterBG.replace('_', '/').replace('!', '?')
         art.append(twitterBG)
     except:
         pass
