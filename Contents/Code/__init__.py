@@ -1208,6 +1208,13 @@ class PhoenixAdultAgent(Agent.Movies):
                 if searchSiteID == 9999 or searchSiteID == 837:
                     results = PAsearchSites.network1service.search(results, encodedTitle, title, searchTitle, siteNum, lang, searchByDateActor, searchDate, searchSiteID)
 
+            ###############
+            ## LookAAllAnalAllTheTime
+            ###############
+            if siteNum == 838:
+                if searchSiteID == 9999 or searchSiteID == 838:
+                    results = PAsearchSites.siteallanalallthetime.search(results, encodedTitle, title, searchTitle, siteNum, lang, searchByDateActor, searchDate, searchSiteID)
+
             siteNum += 1
 
         results.Sort('score', descending=True)
@@ -2248,6 +2255,14 @@ class PhoenixAdultAgent(Agent.Movies):
         ##############################################################
         if siteID == 837:
             metadata = PAsearchSites.network1service.update(metadata, siteID, movieGenres, movieActors)
+        
+        ##############################################################
+        ##                                                          ##
+        ##  AllAnalAllTheTime                                       ##
+        ##                                                          ##
+        ##############################################################
+        if siteID == 838:
+            metadata = PAsearchSites.siteallanalallthetime.update(metadata, siteID, movieGenres, movieActors)
             
         ##############################################################
         ## Cleanup Genres and Add
