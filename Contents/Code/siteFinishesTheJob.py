@@ -1,102 +1,105 @@
 import PAsearchSites
 import PAgenres
-def search(results,encodedTitle,title,searchTitle,siteNum,lang,searchByDateActor,searchDate,searchSiteID):
-    if searchSiteID != 9999:
-        siteNum = searchSiteID
-    searchResults = HTML.ElementFromURL(PAsearchSites.getSearchSearchURL(siteNum) + encodedTitle)
+import PAutils
+
+
+def search(results, encodedTitle, searchTitle, siteNum, lang, searchDate):
+    req = PAutils.HTTPRequest(PAsearchSites.getSearchSearchURL(siteNum) + encodedTitle)
+    searchResults = HTML.ElementFromString(req.text)
     for searchResult in searchResults.xpath('//div[@class="scene"]'):
         titleNoFormatting = searchResult.xpath('.//h4[@itemprop="name"]//a')[0].text_content()
-        Log("Result Title: " + titleNoFormatting)
-        curID = searchResult.xpath('.//a')[0].get('href').replace('/','_').replace('?','!')
-        Log("curID: " + curID)
-        releaseDate = parse(searchResult.xpath('.//small[@class="date"]')[0].text_content().replace("Added:","").strip()).strftime('%Y-%m-%d')
-        Log("releaseDate: " + releaseDate)
+        curID = PAutils.Encode(searchResult.xpath('.//a/@href')[0])
+        releaseDate = parse(searchDate).strftime('%Y-%m-%d') if searchDate else ''
+
         subSite = searchResult.xpath('.//small[@class="shadow"]//a')[0].text_content().strip()
-        Log("subSite: " + subSite)
-        if subSite.lower().replace(".com","").replace(" ","") == PAsearchSites.getSearchSiteName(siteNum).lower().replace(" ",""):
+        if subSite.lower().replace('.com', '').replace(' ', '') == PAsearchSites.getSearchSiteName(siteNum).lower().replace(' ', ''):
             siteScore = 10
-            Log("subSite Match")
         else:
             siteScore = 0
-            Log("subSite mismatch")
-        if searchDate:
-            score = siteScore + 90 - Util.LevenshteinDistance(searchDate, releaseDate)
-        else:
-            score = siteScore + 90 - Util.LevenshteinDistance(searchTitle.lower(), titleNoFormatting.lower())
 
-        results.Append(MetadataSearchResult(id = curID + "|" + str(siteNum), name = titleNoFormatting + " [" + subSite + "] " + releaseDate, score = score, lang = lang))
+        score = siteScore + 90 - Util.LevenshteinDistance(searchTitle.lower(), titleNoFormatting.lower())
+
+        results.Append(MetadataSearchResult(id='%s|%d|%s' % (curID, siteNum, releaseDate), name='%s [%s]' % (titleNoFormatting, subSite), score=score, lang=lang))
 
     return results
-def update(metadata,siteID,movieGenres,movieActors):
-    url = str(metadata.id).split("|")[0].replace('_','/').replace('!','?')
-    detailsPageElements = HTML.ElementFromURL(url)
+
+
+def update(metadata, siteID, movieGenres, movieActors):
+    metadata_id = str(metadata.id).split('|')
+    sceneURL = PAutils.Decode(metadata_id[0])
+    if not sceneURL.startswith('http'):
+        sceneURL = PAsearchSites.getSearchBaseURL(siteID) + sceneURL
+    sceneDate = metadata_id[2]
+    req = PAutils.HTTPRequest(sceneURL)
+    detailsPageElements = HTML.ElementFromString(req.text)
 
     # Title
-    sceneTitle = detailsPageElements.xpath('//h1[@itemprop="name"]')[0].text_content().strip()
-    metadata.title = sceneTitle
-    Log("Scene Title: " + metadata.title)
-
-    # Studio/Tagline/Collection
-    metadata.studio = "Finishes The Job"
-    metadata.tagline = PAsearchSites.getSearchSiteName(siteID)
-    metadata.collections.clear()
-    metadata.collections.add(metadata.tagline)
+    metadata.title = detailsPageElements.xpath('//h1[@itemprop="name"]')[0].text_content().strip()
 
     # Summary
     metadata.summary = detailsPageElements.xpath('//section[@class="scene-content"]//p[@itemprop="description"]')[0].text_content().strip()
-    Log("Scene Summary: " + metadata.summary[:20])
 
-    # Date
-    date = detailsPageElements.xpath('//section[@class="scene-content"]//p[2]')[0].text_content().replace("Added:","").strip()
-    Log("Scene Date: " + date)
-    date_object = parse(date)
-    metadata.originally_available_at = date_object
-    metadata.year = metadata.originally_available_at.year
+    # Studio
+    metadata.studio = 'Finishes The Job'
+
+    # Tagline and Collection(s)
+    metadata.collections.clear()
+    tagline = PAsearchSites.getSearchSiteName(siteID)
+    metadata.tagline = tagline
+    metadata.collections.add(tagline)
+
+    # Release Date
+    if sceneDate:
+        date_object = parse(sceneDate)
+        metadata.originally_available_at = date_object
+        metadata.year = metadata.originally_available_at.year
 
     # Actors
     movieActors.clearActors()
     actors = detailsPageElements.xpath('//section[@class="scene-content"]//h4//a')
-    if len(actors) > 0:
-        for actorLink in actors:
-            actorName = actorLink.text_content()
-            Log("Actress: " + actorName)
-            actorPhotoURL = ''
-            movieActors.addActor(actorName,actorPhotoURL)
+    for actorLink in actors:
+        actorName = actorLink.text_content()
+        actorPhotoURL = ''
+        movieActors.addActor(actorName, actorPhotoURL)
 
     # Genres
     movieGenres.clearGenres()
     genres = detailsPageElements.xpath('//section[@class="scene-content"]//p[1]//a')
-    if len(genres) > 0:
-        for genre in genres:
-            movieGenres.addGenre(genre.text_content())
-            Log("Genre: " + genre.text_content())
-
-    # Posters/Background
-    valid_names = list()
-    metadata.posters.validate_keys(valid_names)
-    metadata.art.validate_keys(valid_names)
-    posterNum = 1
+    for genre in genres:
+        movieGenres.addGenre(genre.text_content())
 
     # Poster
-    posters = detailsPageElements.xpath('//section[contains(@class,"featured-set-a")]//a//img')
-    for posterCur in posters:
-        sceneName = posterCur.get("alt")
-        if sceneName.lower() == sceneTitle.lower():
-            posterURL = posterCur.get("src")
-            Log("Found poster: " + posterURL)
-            metadata.posters[posterURL] = Proxy.Preview(HTTP.Request(posterURL, headers={'Referer': 'http://www.google.com'}).content, sort_order = posterNum)
-            posterNum += 1
+    art = []
+    xpaths = [
+        '//video/@poster'
+    ]
 
-    # Background
-    try:
-        backgroundURL = detailsPageElements.xpath('//aside[@class="scene-aside"]//link[@itemprop="thumbnailUrl"]')[0].get("href")
-    except:
-        try:
-            backgroundURL = detailsPageElements.xpath('//aside[@class="scene-aside"]//img')[0].get("src")
-        except:
-            backgroundURL = ''
-            Log("background not found")
-    metadata.art[backgroundURL] = Proxy.Preview(HTTP.Request(backgroundURL, headers={'Referer': 'http://www.google.com'}).content, sort_order = 1)
-    metadata.posters[backgroundURL] = Proxy.Preview(HTTP.Request(backgroundURL, headers={'Referer': 'http://www.google.com'}).content, sort_order = posterNum)
+    for xpath in xpaths:
+        for img in detailsPageElements.xpath(xpath):
+            art.append(img)
+
+    for posterCur in detailsPageElements.xpath('//div[contains(@class, "first-set")]//img'):
+        sceneName = posterCur.get('alt')
+        if sceneName.lower() == metadata.title.lower():
+            art.append(posterCur.get('src'))
+
+    Log('Artwork found: %d' % len(art))
+    for idx, posterUrl in enumerate(art, 1):
+        if not PAsearchSites.posterAlreadyExists(posterUrl, metadata):
+            # Download image file for analysis
+            try:
+                image = PAutils.HTTPRequest(posterUrl, headers={'Referer': 'http://www.google.com'})
+                im = StringIO(image.content)
+                resized_image = Image.open(im)
+                width, height = resized_image.size
+                # Add the image proxy items to the collection
+                if width > 1:
+                    # Item is a poster
+                    metadata.posters[posterUrl] = Proxy.Media(image.content, sort_order=idx)
+                if width > 100:
+                    # Item is an art item
+                    metadata.art[posterUrl] = Proxy.Media(image.content, sort_order=idx)
+            except:
+                pass
 
     return metadata

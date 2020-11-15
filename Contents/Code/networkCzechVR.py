@@ -1,127 +1,118 @@
 import PAsearchSites
 import PAgenres
-import ssl
-from lxml.html.soupparser import fromstring
-
-def search(results,encodedTitle,title,searchTitle,siteNum,lang,searchByDateActor,searchDate,searchSiteID):
-    if searchSiteID != 9999:
-        siteNum = searchSiteID
-    searchString = searchTitle.replace(" ","-")
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'}
-    try:
-        searchResults = HTML.ElementFromURL(PAsearchSites.getSearchSearchURL(searchSiteID) + searchString)
-    except:
-        request = urllib.Request(PAsearchSites.getSearchSearchURL(searchSiteID) + searchString, headers=headers)
-        response = urllib.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
-        htmlstring = response.read()
-        searchResults = fromstring(htmlstring)
+import PAutils
 
 
+def search(results, encodedTitle, searchTitle, siteNum, lang, searchDate):
+    sceneID = None
+    splited = searchTitle.split(' ')
+    if unicode(splited[0], 'utf8').isdigit():
+        sceneID = splited[0]
+        searchTitle = searchTitle.replace(sceneID, '', 1).strip()
+    encodedTitle = searchTitle.replace(' ', '-')
+    req = PAutils.HTTPRequest(PAsearchSites.getSearchSearchURL(siteNum) + encodedTitle)
+    searchResults = HTML.ElementFromString(req.text)
     for searchResult in searchResults.xpath('//div[contains(@class,"postTag")]'):
         titleNoFormatting = searchResult.xpath('.//div[@class="nazev"]//h2//a')[0].text_content()
-        Log('title: ' + titleNoFormatting)
-        curID = searchResult.xpath('.//a')[0].get('href').replace("./","_")
-        Log('curID: ' + curID)
+        curSceneID = searchResult.xpath('.//div[@class="nazev"]//h2//a')[0].text_content().split(" -")[0]
+        curID = PAutils.Encode(searchResult.xpath('.//a/@href')[0])
         releaseDate = parse(searchResult.xpath('.//div[@class="datum"]')[0].text_content().strip()).strftime('%Y-%m-%d')
-        Log('releaseDate: ' + releaseDate)
         actors = searchResult.xpath('.//div[@class="nazev"]//div[@class="featuring"]//a')
+
         actorList = []
         for actor in actors:
-            actorName = actor.text_content()
-            actorList.append(actorName)
-        actorsPrint = ", ".join(actorList)
-        Log("actors: " + actorsPrint)
+            actorName = actor.text_content().strip()
 
-        if searchDate:
+            actorList.append(actorName)
+        actorsPrint = ', '.join(actorList)
+        if sceneID:
+            score = 100 - Util.LevenshteinDistance(sceneID, curSceneID)
+        elif searchDate:
             score = 100 - Util.LevenshteinDistance(searchDate, releaseDate)
         else:
             score = 100 - Util.LevenshteinDistance(searchTitle.lower(), titleNoFormatting.lower())
 
-        results.Append(MetadataSearchResult(id = curID + "|" + str(siteNum), name = actorsPrint + " in " + titleNoFormatting + " [" + PAsearchSites.getSearchSiteName(siteNum) + "] " + releaseDate, score = score, lang = lang))
-        Log(curID + "|" + str(siteNum) + " // " + titleNoFormatting + " [" + PAsearchSites.getSearchSiteName(siteNum) + "] " + releaseDate + " // " + str(score))
+        results.Append(MetadataSearchResult(id='%s|%d' % (curID, siteNum), name='%s in %s [%s] %s' % (actorsPrint, titleNoFormatting, PAsearchSites.getSearchSiteName(siteNum), releaseDate), score=score, lang=lang))
+
     return results
 
 
-def update(metadata,siteID,movieGenres,movieActors):
-    temp = str(metadata.id).split("|")[0].replace("_","/")
-    urlBase = PAsearchSites.getSearchBaseURL(siteID)
-    url = urlBase + temp
-    Log('url :' + url)
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'}
-    
-    try:
-        detailsPageElements = HTML.ElementFromURL(url)
-    except:
-        request = urllib.Request(url, headers=headers)
-        response = urllib.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
-        htmlstring = response.read()
-        detailsPageElements = fromstring(htmlstring)
-
-    # Studio
-    metadata.collections.clear()
-    metadata.studio = "CzechVR"
-    metadata.tagline = PAsearchSites.getSearchSiteName(siteID)
-    metadata.collections.add(metadata.tagline)
-    Log("Studio: CzechVR | Site/Tagline: " + metadata.tagline)
+def update(metadata, siteID, movieGenres, movieActors):
+    metadata_id = str(metadata.id).split('|')
+    sceneURL = PAutils.Decode(metadata_id[0])
+    if not sceneURL.startswith('http'):
+        sceneURL = PAsearchSites.getSearchBaseURL(siteID) + sceneURL
+    req = PAutils.HTTPRequest(sceneURL)
+    detailsPageElements = HTML.ElementFromString(req.text)
 
     # Title
-    metadata.title = detailsPageElements.xpath('//div[@class="nazev"]//h2')[0].text_content().replace("Czech VR Fetish","").replace("Czech VR Casting","").replace("Czech VR","").strip()
+    metadata.title = detailsPageElements.xpath('//div[@class="nazev"]//h2')[0].text_content().replace('Czech VR Fetish', '').replace('Czech VR Casting', '').replace('Czech VR', '').strip()
 
     # Summary
     metadata.summary = detailsPageElements.xpath('//div[@class="textDetail"]')[0].text_content().strip()
 
-    # Genres
-    movieGenres.clearGenres()
-    genres = detailsPageElements.xpath('//div[@class="tag"]//a')
-    if len(genres) > 0:
-        for genreLink in genres:
-            genreName = genreLink.text_content().lower().strip()
-            movieGenres.addGenre(genreName)
+    # Studio
+    metadata.studio = 'CzechVR'
 
-    # Date
+    # Tagline and Collection(s)
+    metadata.collections.clear()
+    tagline = PAsearchSites.getSearchSiteName(siteID)
+    metadata.tagline = tagline
+    metadata.collections.add(tagline)
+
+    # Release Date
     date = detailsPageElements.xpath('//div[@class="nazev"]//div[@class="datum"]')[0].text_content().strip()
-    if len(date) > 0:
+    if date:
         date_object = datetime.strptime(date, '%b %d, %Y')
         metadata.originally_available_at = date_object
         metadata.year = metadata.originally_available_at.year
 
+    # Genres
+    movieGenres.clearGenres()
+    for genreLink in detailsPageElements.xpath('//div[@class="tag"]//a'):
+        genreName = genreLink.text_content().lower().strip()
+
+        movieGenres.addGenre(genreName)
+
     # Actors
     movieActors.clearActors()
-    actors = detailsPageElements.xpath('(//div[@class="nazev"])[1]//div[@class="featuring"]//a')
-    if len(actors) > 0:
-        for actorLink in actors:
-            actorName = actorLink.text_content().strip()
-            actorPhotoURL = ''
-            movieActors.addActor(actorName, actorPhotoURL)
+    for actorLink in detailsPageElements.xpath('(//div[@class="nazev"])[1]//div[@class="featuring"]//a'):
+        actorName = actorLink.text_content().strip()
+        actorPhotoURL = ''
 
-    # Background
-    background = PAsearchSites.getSearchBaseURL(siteID) + detailsPageElements.xpath('//div[@class="foto"]//dl8-video')[0].get("poster")[1:]
-    try:
-        metadata.art[background] = Proxy.Preview(HTTP.Request(background, headers={'Referer': 'http://www.google.com'}).content, sort_order = 1)
-    except:
-        request = urllib.Request(background, headers=headers)
-        response = urllib.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
-        content = response.read()
-        metadata.art[background] = Proxy.Media(content, sort_order=1)
-    Log("BG DL: " + background)
+        movieActors.addActor(actorName, actorPhotoURL)
 
-    # Poster
-    posters = detailsPageElements.xpath('//div[@class="galerka"]//a')
-    posterNum = 1
-    for posterCur in posters:
-        posterURL = urlBase + posterCur.get("href")[1:]
-        try:
-            metadata.posters[posterURL] = Proxy.Preview(HTTP.Request(posterURL, headers={'Referer': 'http://www.google.com'}).content, sort_order = posterNum)
-            metadata.art[posterURL] = Proxy.Preview(HTTP.Request(posterURL, headers={'Referer': 'http://www.google.com'}).content, sort_order = (posterNum + 1))
-        except:
-            request = urllib.Request(posterURL, headers=headers)
-            response = urllib.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
-            content = response.read()
-            metadata.art[posterURL] = Proxy.Media(content, sort_order=1)
-            metadata.posters[posterURL] = Proxy.Media(content, sort_order=1)
-        Log("Poster: " + posterURL)
+    # Posters
+    art = []
+    xpaths = [
+        '//div[@class="foto"]//dl8-video/@poster',
+        '//div[@class="galerka"]//a/@href'
+    ]
+    for xpath in xpaths:
+        for poster in detailsPageElements.xpath(xpath):
+            poster = poster[1:]
+            if not poster.startswith('http'):
+                poster = PAsearchSites.getSearchBaseURL(siteID) + poster
 
+            art.append(poster)
 
-
+    Log('Artwork found: %d' % len(art))
+    for idx, posterUrl in enumerate(art, 1):
+        if not PAsearchSites.posterAlreadyExists(posterUrl, metadata):
+            # Download image file for analysis
+            try:
+                image = PAutils.HTTPRequest(posterUrl, headers={'Referer': 'http://www.google.com'})
+                im = StringIO(image.content)
+                resized_image = Image.open(im)
+                width, height = resized_image.size
+                # Add the image proxy items to the collection
+                if width > 1:
+                    # Item is a poster
+                    metadata.posters[posterUrl] = Proxy.Media(image.content, sort_order=idx)
+                if width > 100:
+                    # Item is an art item
+                    metadata.art[posterUrl] = Proxy.Media(image.content, sort_order=idx)
+            except:
+                pass
 
     return metadata
